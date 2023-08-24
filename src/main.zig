@@ -13,17 +13,30 @@ pub fn main() !void {
 
     var clientAddress: ?*std.os.sockaddr = null;
     var clientLen: ?*std.os.socklen_t = null;
-    const clientSocket = try std.os.accept(socket, clientAddress, clientLen, 0);
+
+    while (true) {
+        const client = try std.os.accept(socket, clientAddress, clientLen, 0);
+        _ = try std.Thread.spawn(.{}, listen, .{client});
+    }
 
     std.os.closeSocket(socket);
+}
+
+fn listen(sock: std.os.socket_t) !void {
+    std.debug.print("opening socket {}\n", .{sock});
 
     var data: [10]u8 = undefined;
     while (true) {
-        const length = try std.os.recv(clientSocket, &data, 0);
-        std.debug.print("{s}", .{data[0..length]});
+        const length = try std.os.recv(sock, &data, 0);
+        if (length == 0) break;
 
-        _ = try std.os.send(clientSocket, data[0..length], 0);
+        std.debug.print("received: {s}", .{data[0..length]});
+
+        _ = try std.os.send(sock, data[0..length], 0);
     }
+
+    std.debug.print("closing socket {}\n", .{sock});
+    std.os.closeSocket(sock);
 }
 
 // SOCKET FUNCTIONS
