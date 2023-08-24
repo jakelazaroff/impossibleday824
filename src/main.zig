@@ -35,16 +35,23 @@ fn listen(sock: std.os.socket_t) !void {
 
         std.debug.print("received: {s}\n", .{req[0..length]});
 
-        const file = try std.fs.cwd().openFile("hello.txt", .{});
-        defer file.close();
+        var it = std.mem.tokenize(u8, req[0..length], " ");
+        const verb = it.next() orelse "";
+        if (std.mem.eql(u8, verb, "GET")) {
+            const path = it.next() orelse "/";
+            std.debug.print("path: {s}\n", .{path});
 
-        var data: [1000]u8 = undefined;
-        const dataLen = try std.fs.File.preadAll(file, &data, 0);
+            const file = try std.fs.cwd().openFile(path[1..], .{});
+            defer file.close();
 
-        const res = try response(data[0..dataLen]);
-        std.debug.print("{s}\n", .{res});
+            var data: [1000]u8 = undefined;
+            const dataLen = try std.fs.File.preadAll(file, &data, 0);
 
-        _ = try std.os.send(sock, res, 0);
+            const res = try response(data[0..dataLen]);
+            std.debug.print("{s}\n", .{res});
+
+            _ = try std.os.send(sock, res, 0);
+        }
     }
 
     std.debug.print("closing socket {}\n", .{sock});
