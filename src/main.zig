@@ -1,7 +1,10 @@
 const std = @import("std");
 
+const allocator = std.heap.page_allocator;
+
 pub fn main() !void {
     const socket = try std.os.socket(std.os.AF.INET, std.os.SOCK.STREAM, 0);
+    defer std.os.closeSocket(socket);
 
     // const address = std.os.sockaddr.in{ .port = 8080, .addr = 2130706433 };
     // 31, 144 = 8080
@@ -18,34 +21,46 @@ pub fn main() !void {
         const client = try std.os.accept(socket, clientAddress, clientLen, 0);
         _ = try std.Thread.spawn(.{}, listen, .{client});
     }
-
-    std.os.closeSocket(socket);
 }
 
 fn listen(sock: std.os.socket_t) !void {
+    defer std.os.closeSocket(sock);
+
     std.debug.print("opening socket {}\n", .{sock});
 
-    var data: [10]u8 = undefined;
+    var req: [1000]u8 = undefined;
     while (true) {
-        const length = try std.os.recv(sock, &data, 0);
+        const length = try std.os.recv(sock, &req, 0);
         if (length == 0) break;
 
-        std.debug.print("received: {s}", .{data[0..length]});
+        std.debug.print("received: {s}\n", .{req[0..length]});
 
-        const response =
-            \\HTTP/1.1 200 OK
-            \\Accept-Ranges: bytes
-            \\Content-Type: text/plain
-            \\Content-Length: 13
-            \\
-            \\hello, world!
-        ;
+        const file = try std.fs.cwd().openFile("hello.txt", .{});
+        defer file.close();
 
-        _ = try std.os.send(sock, response, 0);
+        var data: [1000]u8 = undefined;
+        const dataLen = try std.fs.File.preadAll(file, &data, 0);
+
+        const res = try response(data[0..dataLen]);
+        std.debug.print("{s}\n", .{res});
+
+        _ = try std.os.send(sock, res, 0);
     }
 
     std.debug.print("closing socket {}\n", .{sock});
-    std.os.closeSocket(sock);
+}
+
+fn response(data: []u8) ![]u8 {
+    const base =
+        \\HTTP/1.1 200 OK
+        \\Accept-Ranges: bytes
+        \\Content-Type: text/plain
+        \\Content-Length: {d}
+        \\
+        \\{s}
+    ;
+
+    return try std.fmt.allocPrint(allocator, base, .{ data.len, data });
 }
 
 // SOCKET FUNCTIONS
