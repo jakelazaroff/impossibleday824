@@ -1,24 +1,47 @@
 const std = @import("std");
 
 pub fn main() !void {
-    // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
-    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
+    const socket = try std.os.socket(std.os.AF.INET, std.os.SOCK.STREAM, 0);
 
-    // stdout is for the actual output of your application, for example if you
-    // are implementing gzip, then only the compressed bytes should be sent to
-    // stdout, not any debugging messages.
-    const stdout_file = std.io.getStdOut().writer();
-    var bw = std.io.bufferedWriter(stdout_file);
-    const stdout = bw.writer();
+    // const address = std.os.sockaddr.in{ .port = 8080, .addr = 2130706433 };
+    // 31, 144 = 8080
+    // 127, 0, 0, 1 = 127.0.0.1
+    // zeros = padding
+    const address = std.os.sockaddr{ .family = std.os.AF.INET, .data = [_]u8{ 31, 144, 127, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0 }, .len = 0 };
+    try std.os.bind(socket, &address, @sizeOf(std.os.sockaddr));
+    try std.os.listen(socket, 1);
 
-    try stdout.print("Run `zig build test` to run the tests.\n", .{});
+    var clientAddress: ?*std.os.sockaddr = null;
+    var clientLen: ?*std.os.socklen_t = null;
+    const clientSocket = try std.os.accept(socket, clientAddress, clientLen, 0);
 
-    try bw.flush(); // don't forget to flush!
+    std.os.closeSocket(socket);
+
+    var data: [100]u8 = undefined;
+    while (true) {
+        const length = try std.os.recv(clientSocket, &data, 0);
+        std.debug.print("{s}", .{data[0..length]});
+    }
 }
 
-test "simple test" {
-    var list = std.ArrayList(i32).init(std.testing.allocator);
-    defer list.deinit(); // try commenting this out and see if zig detects the memory leak!
-    try list.append(42);
-    try std.testing.expectEqual(@as(i32, 42), list.pop());
-}
+// SOCKET FUNCTIONS
+// accept
+// bind -- if a program binds a socket to a source address
+//          the socket can be used to receive data sent to that address
+// closeSocket
+// connect
+// getpeername
+// getsockname
+// listen
+// recv
+// recvfrom
+// send
+// sendmsg
+// sendto
+// sendsockopt
+// shutdown
+
+// A server may create several concurrently established TCP sockets with the same local port/ip
+// each mapped to its own server-child process, serving its own client process.
+// They are treated as different sockets since remote address is different
+// = different socket-pair
