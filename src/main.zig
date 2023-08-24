@@ -41,21 +41,33 @@ fn listen(sock: std.os.socket_t) !void {
             const path = it.next() orelse "/";
             std.debug.print("path: {s}\n", .{path});
 
-            const file = try std.fs.cwd().openFile(path[1..], .{});
-            defer file.close();
+            if (std.fs.cwd().openFile(path[1..], .{})) |file| {
+                defer file.close();
 
-            var data: [1000]u8 = undefined;
-            const dataLen = try std.fs.File.preadAll(file, &data, 0);
+                var data: [1000]u8 = undefined;
+                const dataLen = try std.fs.File.preadAll(file, &data, 0);
 
-            const res = try response(data[0..dataLen]);
-            std.debug.print("{s}\n", .{res});
+                const res = try response(data[0..dataLen]);
+                std.debug.print("{s}\n", .{res});
 
-            _ = try std.os.send(sock, res, 0);
+                _ = try std.os.send(sock, res, 0);
+            } else |_| {
+                _ = try std.os.send(sock, notfound, 0);
+            }
         }
     }
 
     std.debug.print("closing socket {}\n", .{sock});
 }
+
+const notfound =
+    \\HTTP/1.1 404 Not Found
+    \\Accept-Ranges: bytes
+    \\Content-Type: text/plain
+    \\Content-Length: 13
+    \\
+    \\404 Not found
+;
 
 fn response(data: []u8) ![]u8 {
     const base =
