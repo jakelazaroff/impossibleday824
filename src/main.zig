@@ -6,12 +6,10 @@ pub fn main() !void {
     const socket = try std.os.socket(std.os.AF.INET, std.os.SOCK.STREAM, 0);
     defer std.os.closeSocket(socket);
 
-    // const address = std.os.sockaddr.in{ .port = 8080, .addr = 2130706433 };
-    // 31, 144 = 8080
-    // 127, 0, 0, 1 = 127.0.0.1
-    // zeros = padding
-    const address = std.os.sockaddr{ .family = std.os.AF.INET, .data = [_]u8{ 31, 144, 127, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0 }, .len = 0 };
-    try std.os.bind(socket, &address, @sizeOf(std.os.sockaddr));
+    const address = std.net.Ip4Address.init([_]u8{ 127, 0, 0, 1 }, 8080);
+    const sockaddr = @ptrCast(*const std.os.sockaddr, &address.sa);
+
+    try std.os.bind(socket, sockaddr, @sizeOf(std.os.sockaddr));
     try std.os.listen(socket, 1);
 
     var clientAddress: ?*std.os.sockaddr = null;
