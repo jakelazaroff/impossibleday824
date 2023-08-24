@@ -32,7 +32,16 @@ fn listen(sock: std.os.socket_t) !void {
 
         std.debug.print("received: {s}", .{data[0..length]});
 
-        _ = try std.os.send(sock, data[0..length], 0);
+        const response =
+            \\HTTP/1.1 200 OK
+            \\Accept-Ranges: bytes
+            \\Content-Type: text/plain
+            \\Content-Length: 13
+            \\
+            \\hello, world!
+        ;
+
+        _ = try std.os.send(sock, response, 0);
     }
 
     std.debug.print("closing socket {}\n", .{sock});
