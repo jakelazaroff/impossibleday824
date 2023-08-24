@@ -17,10 +17,12 @@ pub fn main() !void {
 
     std.os.closeSocket(socket);
 
-    var data: [100]u8 = undefined;
+    var data: [10]u8 = undefined;
     while (true) {
         const length = try std.os.recv(clientSocket, &data, 0);
         std.debug.print("{s}", .{data[0..length]});
+
+        _ = try std.os.send(clientSocket, data[0..length], 0);
     }
 }
 
